@@ -49,10 +49,11 @@
     These can be used for many purposes, eg. as a hint for translator.
 
       […]. 'meta' contains a string (…) that is accessible after parse.
-        %. 'meta' for this line is given in a value of the next line.
+        %. 'join meta'. Annotation for the value of this line is given
+           as value in the next line.
 
 
-    Pragmas can be joined.  Eg. |\^[xyType]. pragma string means:
+    Pragmas can be chained.  Eg. |\^[xyType]. pragma string means:
     preserve trailing space, unquote escapes then add an endline.
     The 'meta' block pragma likely provides a value's type.
 
@@ -152,12 +153,12 @@
     cfline ::= (NAME|INDEX ' ')? : (' ' VALUE)? (' ' FLOW)? (' '//REM)?
       ITEM ::= (NAME?|INDEX?) : VALUE?
 
-    Line syntax in w3c EBNF:
+    OConf line syntax in w3c EBNF:
 
         TODO
 
 
-    Line syntax in prose: 
+    OConf line syntax in prose: 
 
     Start Of Line
         (skipped:  any amount of space characters by the input rule)
@@ -196,7 +197,7 @@
        INDEX : VALUE  // ORD. Ordered with explicit index position.
 
 
-  OConf Structure:
+  OConf's data structure mappings:
 
     Nine values are special and each opens or closes the structure
     block. If these need to be in a VALUE they must be disambiguated.
@@ -327,15 +328,19 @@
          xy +. '+.  // disambiguate +. of the value then append next.
 
 
+    If pragmas are chained, the 'disa or |guard pragmas MUST always come
+    first and any 'meta' block MUST come last.
+
+
   GROUP items for common pragma.
 
-    GROUP opens with a VALUE of a single parenthesis character. 
+    GROUP opens with a VALUE of single parenthesis character. 
     It closes over a block of ITEMs but it does not change its depth
     (so GROUP can not be a part of the path.)
     
-    Pragmas +, type and metas can be set on a GROUP opening and these
-    then applly to EACH of grouped ITEMs. Pragmas from the GROUP and
-    a line are joined.
+    Pragmas join, type, newline, backtick and meta can be set on a GROUP
+    opening and these then applly to EACH of grouped ITEMs. Pragmas from
+    the GROUP and a line are joined.
 
         : ( ^+.                     // group multiline text
           : line 1                  // ^+. implicit
@@ -344,7 +349,7 @@
         : )
 
 
-  Order of appearance:
+  Order of appearance for structured data blocks:
 
     1. At the root of the tree is an unnamed section of depth 0.
 
@@ -572,13 +577,15 @@
     snippet as a value.  To my (ohir's) knowledge no other config
     format can make to it in a single line even today.
 
-    First OConf parser was implemented for a huge mainframe-to-unix
-    pipeline written in perl. Now, simplified with new lookaheads
-    and extended to cover also corner cases, this parser's tokenizer
-    is used as a syntax formal specification.
+    First OConf parser was implemented as simple regexp for a huge
+    mainframe-to-unix pipeline written in perl. Now, shortened with
+    new perlre lookaheads and extended to cover also corner cases,
+    this parser's tokenizer was used as a syntax formal specification.
 
     Current OConf specifcation was extended with more metas
     and with definition of GROUP pragma application.
+
+
 
 
 APPENDIX F. 

@@ -1,5 +1,6 @@
 ## OConf specification draft, v1.0.0
 
+```
 " OCONF specification draft. (c)1996-2019 Ohir Ripe. CC BY License.
 
   Introduction:

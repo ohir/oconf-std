@@ -1,18 +1,16 @@
-## OConf specification draft
+## OConf specification draft, v1.0.0
 
-
-```
-" OConf specification draft. (c)1996-2019 Ohir Ripe. CC BY License.
+" OCONF specification draft. (c)1996-2019 Ohir Ripe. CC BY License.
 
   Introduction:
 
     "It is expected that casual reader will understand every example."
 
-    OConf can describe heterogeneous data trees of arbitrary depth.
+    OCONF can describe heterogeneous data trees of arbitrary depth.
     It delivers on all unfulfilled promises of YAML using less
     syntax constructs than a half of TOML's.
 
-    OConf syntax was carefully designed to be easy readable by humans
+    OCONF syntax was carefully designed to be easy readable by humans
     and to be single-pass parseable with a loop/switch construct (in C).
     Utf8 encoded unicode and 8 bit codepages can be parsed alike.
 
@@ -20,13 +18,13 @@
       - Indentation does not matter but is defined for human read.
       - Long values may span many lines and still keep indent line.
 
-    All but one OConf syntax elements are more than less customary:
+    All but one OCONF syntax elements are more than less customary:
 
-         :  colon surrounded by spaces is the key/value separator.
-        "   whole line comment may start with ", # or / (usually as //).
+        :   colon surrounded by spaces is the key/value separator.
+        ^^  Section, a named record, is the basic structure block.
+        []  [List], {Dict}, <Set> and (Group) can structure data, too. 
+        #"  whole line comment starts with " ! # or / (usually two of).
         //  two slashes after a space make a comment to the end of line.
-        >>  Section, a named record, dictionary or list, is the basic
-            structure block.
 
 
     The only new syntax element to learn and remember is 'value pragma'
@@ -45,46 +43,99 @@
             shape; to be processed further by user's code. 
 
 
-    OConf allows also for data annotation with pragmas called 'meta'.
-    These can be used for many purposes, eg. as a hint for translator.
+    OCONF allows also for data annotation with pragmas called 'meta'.
+    These can have many purposes, eg. as a type hint. Eg.
 
-      […]. 'meta' contains a string (…) that is accessible after parse.
-        %. 'join meta'. Annotation for the value of this line is given
-           as value in the next line.
+      {…}. 'meta' contains a string "…" that is accessible after parse.
+        %. 'meta' for this line is given in the value of the next line.
 
 
-    Pragmas can be chained.  Eg. |\^[xyType]. pragma string means:
+    Pragmas can be joined.  Eg. |\^{xyType}. pragma string means:
     preserve trailing space, unquote escapes then add an endline.
-    The 'meta' block pragma likely provides a value's type.
+    The <meta> block pragma likely hints at value's type.
 
         _  'filler' character (underscore) can be used to visually
             separate joined pragmas. Eg. |_^_+. equals to |^+.
 
 
-  TL;DR oconf example:
+    Annotated OCONF can be used as a crystal clear source for XML output:
 
-      A key : value                // name:value line. Name is 'A key'.
-    Section : >                    // > tells we're going to depth 1
-       spaced :  val & spaces   |. // keep blanks intact.
-     SubSec : >>                   // >> go depth 2
-          key : value              // /Section/SubSect/key = value
-      SSSub : >>>                  // >>> go depth 3
-          key : value              // /Section/SubSect/SSSub/key = value
-    OthSect : >                    // Next sect opens. All above close.
-          key : value              // /OthSect/key = value
-         long : long string can +. // next line is a continuation.
-              :  be chopped to  +. // this too has a continuation.
-              :  many pieces us +. // below the value ends but it needs
-              : ing a pragma +. '. // to be disambiguated due to the +. 
-
-
-    Full OConf specifcation adds 'type' pragmas, more 'meta' brackets
-    and structure constructs: [list], <set>, (group) and {dictionary}.
-    OConf can also be used as a crystal clear source for XML configs:
-
-      label : R&D        <tag id=?+ kind=?">.  // OConf 'oc2xml' source 
+      label : R&D        <tag id=?+ kind=?">.  // OCONF 'oc2xml' source 
       
       <tag id="1" kind="label">R&amp;D</tag> <!-- XML output produced-->
+
+
+  TL;DR config example with most features shown:
+    
+// line comment can also begin with " # ! (d-quote, sharp and bang) markers.
+ ! free comment lines are possible too - these may not contain ' : ' though.
+ # Note that in real configs pragmas and annotations are rare.
+
+ ^ Section : ----- section lead --- //  ^  is a "section" marker and depth indicator. 
+ '^ escape : not a section lead     // '   at start makes any key an ordinary string.
+    spaced :  val & spaces     |.   //  |  "guard pragma" keeps tail blanks intact.
+    noComm : hello // there    '.   //  '  "disa  pragma" makes former // to the Value
+   withCTL : Use\t tab and \n  \.   //  \  "unesc pragma" unescapes \t, \n, and \xHH
+    withNL : some value        ^.   //  ^  "newline pragma" adds a '\n' at the end.
+    looong : value can span    +.   //  +  "join Pragma" joins this line value with
+           :  many lines and   +.   //      next line value 
+           :: still keep indent.    // ::  separator makes leading space more visible.
+
+  ^^ SubSec : --------------------- // ^^  open subsection at depth 2.
+                                    //     ----- in value above is just a decoration
+            : list member  0        //     Ordered (unnamed) values can be indexed 
+            : list member  1        //     naturally by the order of apperance
+        33  : list member 33        //     or with index being given explicit
+            : value                 //     /Section/SubSect[34] = value
+                                       
+   ^^^ SSSub : ----------------  %. // ^^^ go depth 3 sub-sub section. %. next meta.
+   'CIenv: testing, triage, bucket  //     meta line for the section as per %. above.
+         key : value                //     /Section/SubSect/SSSub.key = value
+
+ ^ OthSect : ---------------------- // Next depth 1 section opens. All above close.
+       key : value                  // /OthSect.key = value
+     a key : value                  // spaces in keys are ok.   Here is  "a key".
+   ' spkey :  value                 // '  quotes leading space. Here is " spkey".
+       Имя : Юрий                   // OConf supports utf-8 encoded unicode
+       键k : v值                    // in full range. [And 8bit "codepages" too].
+
+ ^^ PGroups : --------------------- // ( Group applies a pragma to many items
+    ( : group pragma ^+.            // Put ^+. on every line till group ends.
+      : many lines may come here    //  Eglible are metas and pragmas + \ ` ^. 
+      :  that keep indent line but  //  | ' % can not be grouped. 
+      :  sometimes need to be disa  //
+      : mbiguated for // or ?.  '.  // Here sum of pragmas applies: '^+.
+      : 
+    ) : group ends                  // Bracket can have a value or pragma, too.
+
+ ^^ SubTrees : -------------------- // Show other structure constructs.
+  dictname { : dict opens           // These SHOULD NOT be used
+        some : value                // in human __editable__ configs.
+     'nodict { :                    // 'disa makes key ordinary: "nodict {" 
+    listname [ : list opens         // Ordered (unnamed) values can be indexed 
+               : list member 0      // naturally by the order of apperance
+           33  : list member 33     // or with index being given explicit
+               < : anon set opens   // <set> is now at index 34
+                 : with unnamed    
+             and : with named members 
+            '33  : 33 is a string not an index due to opening 'disa
+            ''7  : '7 is a two characters string
+        deepdict { : dictionary in a set, looked up by its name
+              deep : value here  // /OthSect/SubDict/listname/34/deepdict/deep/
+                 } : deep dict closes
+               > : set closes
+               : list member 35
+             ] : list closes
+       other : value
+           } : dict closes
+
+ ^^ Raw Multiline :   // Use :==    
+  mtx :== xHereRaw    // below multiline block will be a VALUE of mtx. 
+      This^^^^^^^^ is a custom boundary string. It must have at least
+      8 bytes and exactly 8 bytes of it matters. If no custom boundary
+      given (or it is too short), the ==RawEnd default one is used.
+      Here block ends at a space before the x of xHereRaw.
+
 
 
 
@@ -92,19 +143,18 @@
                        FULL OCONF SPECIFICATION
 
 
-
   Vocabulary:
 
-    * OConf stands for 'Object Config' (or ohir's config ;).
+    * OCONF stands for 'Object Config' (or ohir's config).
     * SOL and EOL means 'start of line' and 'end of line', respectively.
     * ITEM is a line that parsed successfully to a name, value, and
-      possibly other OConf syntax tokens.
+      possibly other OCONF syntax tokens.
     * The 'name' and 'value' words in this document almost universally
       mean the name and value out of a parsed ITEM. 
     * The 'named value' or 'unnamed value' phrases are preferred but
       the 'key' for name,  or 'key/value' phrase may be used too.
     * The 'byte', 'char' and 'character' are used interchangeably
-      as OConf line format is specified in terms of byte values.
+      as OCONF line format is specified in terms of byte values.
     * Syntax' punctuation and symbol characters are used without quotes
       where it is unambiguous. Sporadically are given in single quotes.
     * The 'glyph' word is used if unicode representation form matters.
@@ -120,17 +170,15 @@
   Input:
 
     Ascii control characters (0x00-0x1F and 0x7F) SHOULD NOT be
-    allowed in an input line. 
+    allowed in an input line, except for TAB (0x09), and CR (0x0d)
+    characters that are treated like a space (0x20) and a NL (0x0a)
+    character that MUST end any parseable line. Leading space (0x20)
+    characters of a line do not matter.
     
     Except above, all UTF-8 encoded unicode codepoints are allowed
     as well as eight-bit characters of ISO-8859 and DOS codepages.
 
     For unicode input a valid UTF-8 encoding is expected.
-
-    Leading space (0x20) characters do not matter (are ommited).
-
-    Line ending NL character MUST end any parseable line.
-    The CR of CRLF line ending is considered to be a space character. 
     
 
   Comments:
@@ -144,45 +192,52 @@
 
   Config line:
 
-    Every OConf line has four, possibly empty, parts. Colon character
+    Every config line provides some VALUE, possibly empty, under
+    optional NAME. This pair is hereafter referred to as "ITEM".
+    The FLOW, and REM parts are auxilary.
+
+    Every OCONF line has four, possibly empty, parts. Colon character
     is a separator that MUST be present between the name part and the
-    value part.  Every config line provides some VALUE, possibly empty,
-    under optional NAME. This pair is hereafter referred to as "ITEM".
-    The FLOW and REM parts are auxilary.
+    value part.  
     
-    cfline ::= (NAME|INDEX ' ')? : (' ' VALUE)? (' ' FLOW)? (' '//REM)?
-      ITEM ::= (NAME?|INDEX?) : VALUE?
+    cfline ::= (NAME|INDEX|SNAME ' ')? : (' ' VALUE)? (' ' FLOW)? (' '//REM)?
+      ITEM ::= (NAME?|INDEX?|SNAME?) : VALUE?
 
-    OConf line syntax in w3c EBNF:
-
-        TODO
-
-
-    OConf line syntax in prose: 
+    Line syntax in prose: 
 
     Start Of Line
         (skipped:  any amount of space characters by the input rule)
-        optional: <NAME> or <INDEX> followed by a space, then
-        required: colon,  then
-        optional: <VALUE> prepended with space or colon, then
-        optional: <FLOW>  prepended with space, then
-        optional: <REM>   prepended with space, slash, slash; then
+        optional: <NAME> or <INDEX>, or <SNAME> followed by a space, then
+        required: colon,    then
+        optional: <VALUE>   prepended with space or colon, then
+        optional: <FLOW>    prepended with space, then
+        optional: <REM>     prepended with space, slash, slash; then
     End Of Line
+              (Formal line syntax description is given in APPENDIX B.) 
 
 
-    1. NAME (key) MUST start with a byte over 0x2F or with a quote (')
-       character that is then skipped. Name characters are not further
-       restricted but in MDC context names SHOULD NOT contain a 0x2F
-       ('/' slash) character. If it is allowed by an implementation,
-       in iall references slash should be substituted. Eg. with tilde.
+    1. INDEX (numerical key) MUST start with an ascii digit and it MUST
+       consist only of ascii digits [0-9].
 
-       Name that consist only of ascii digits [0-9] is called an INDEX.
+    2. SNAME (structure marker key) MUST either start with a one or more
+       ^ (0x5e) caret characters, or end with one or more bracket
+       ([{<>}]) characters that are the structure markers. Other parts
+       od the SNAME are used as the NAME.
 
-    2. VALUE is not restricted and needs no enclosing quotes.
+    3. NAME (ordinary key) is a NAME that is neither INDEX nor SNAME.
+       If the first character is a single quote ' (0x27) this character
+       is then skipped and any string after it is treated as an ordinary
+       NAME. 
 
-    3. FLOW part is described in [FLOW pragmas] section.
+       A Name (of any form) MUST NOT contain a sequence of colon-space.
+       It SHOULD NOT contain a character that is used by implementation
+       as an access path joiner (usually a slash or an underscore).
 
-    4. REM part opens with (space, slash, slash) sequence and extends
+    4. VALUE is not restricted and needs no enclosing quotes.
+
+    5. FLOW part is described in [FLOW pragmas] section.
+
+    6. REM part opens with (space, slash, slash) sequence and extends
        to the end of line, including all spaces.  Leading space is a
        part of the opening pattern!  Ie. VALUE of 'http://example.tld'
        needs no disambiguation.
@@ -190,47 +245,71 @@
        Remark part MUST NOT contain a sequence that resembles pragma.
        Ie. it MUST NOT contain sequences of (punctuation, dot) shape.
     
-    5. ITEM forms are hereafter referred to as named or ORD:
+    ITEM forms can be further referred to as Named or ORD (ordered):
 
-        NAME : VALUE  //      Named value.
+        NAME : VALUE  // Named value.
              : VALUE  // ORD. Ordered value. Name is empty.
-       INDEX : VALUE  // ORD. Ordered with explicit index position.
+       INDEX : VALUE  // IDX. Ordered with explicit index position.
 
 
-  OConf's data structure mappings:
+  OCONF Structure:
 
-    Nine values are special and each opens or closes the structure
-    block. If these need to be in a VALUE they must be disambiguated.
+    Structure is introduced using a SNAME, ie a NAME that starts with
+    ^ or @ or one of bracket characters:
+
+    Opening        Closing 
+        ^ :            ^ : - SECT  (named Section/next named Section)
+        @ :            @ : - SECT  second form  
+        ( :            ) : - GROUP (common pragma)
+        [ :            ] : - LIST  (of ordered VALUEs)
+        { :            } : - DICT  (dictionary, associative array)
+        < :            > : - SET   (implementation dependent)
     
-    SECT is the basic block that maps to a data tree, usually a
-    dictionary or struct.  It opens with a named VALUE of one or more >
-    characters.  Count of > chars describes the depth of the tree.
-    SECT closes either at the end of file or where an other SECT
-    of the same or of shallower depth level opens.
+    SECT is the basic block that maps its items to a struct, dictionary
+    or even to a list.  Section opens with an ITEM that is marked using
+    caret opening. An implementation MAY use bracket opening instead.
 
-       name : >   // SECT. A 'name' named section opens at depth 1.
-        sub : >>  // count of >s tells the section's depth. Here 2.
-         d2 : >>  // SECT of any given depth closes where other opens on
-         d1 : >   // the same or shallower depth; or at the end of file.
+    Depth of the Section, from the root of depth 0, is given in the
+    count of opening characters.
 
-
-    Four other structure blocks are recognized. Each opens with a VALUE
-    of a single bracket character and closes with a bracket to the pair.
-
-            : [   // LIST. Of ordered values.    Closes with unnamed ']' 
-            : {   // DICT. Aka TREE or STRUCT.   Closes with unnamed '}'
-            : <   // SET. Implementation dep.    Closes with unnamed '>'
-            : (   // GROUP is for common pragma. Closes with unnamed ')'
-
-    LIST, DICT and possibly SET are commonly referred as NEST blocks.
-    SET is recognized but its meaning is implementation dependent.
-    Opening of any block can either be named or ordered but its
-    closing MUST NOT be named.
-
+    SECT closes either at the end of file or where an other SECT of
+    the same or shallower depth level opens.
     
+    Any Section can contain other Sections (subsections) thus forming a
+    data tree that starts at common root at the depth 0. Every section
+    right under the root has depth 1, its subsections are of depth 2
+    and so on.
+
+    //  .                                Root has depth 0
+    ^   ├── Section depth1 :             section opens at depth 1
+    ^^  │   ├── SubSect.d2 :             count of ^s tells the depth 
+    ^^^ │   │   └─ SSSu.d3 :             SECT of any given depth closes
+    ^^  │   └── SubNext.d2 :             where other section opens on
+    ^   └── TheNextSection :             the same or shallower depth;
+    ^^      └── ItsSubs.d2 :             or at the end of file.
+    
+    ()
+    GROUP is used to apply a common pragma to the group of ITEMs.
+
+    [] {} <>
+    Three other structure blocks (LIST, DICT and SET) SHOULD not be
+    used in configs meant to be edited by a human. 
+    Structure block closings MUST NOT be named.
+
+
+  RAW VALUE
+
+    :== BOUNDARY ... BOUNDARY
+    RAW (VALUE) starts at column 1 of a line below and ends at
+    a character immediately follwed by the custom or default BOUNDARY
+    string.  Custom BOUNDARY string must have at least 8 bytes and only
+    8 bytes of it matters.  If custom BOUNDARY string is not given,
+    it defaults to ==RawEnd.
+    
+
   FLOW pragmas:
 
-    Where other formats use complicated syntax rules, OConf uses short
+    Where other formats use complicated syntax rules, OCONF uses short
     after-value pragmas. In most implementations up to six.
 
     FLOW block begins with a single leading space followed by a symbol
@@ -242,61 +321,39 @@
      ‾‾‾‾ ‾‾‾‾‾  ‾‾‾‾‾‾‾   
         '  disa: disambiguate. Used where a VALUE might be confuding.
            - if VALUE contains a (space, slash, slash) sequence. ' //'
-           - if VALUE contains only > characters.                '>>>'
-           - if VALUE contains a single ( { [ < ] } ) bracket.     '<'
            - if VALUE ends with any pragma sequence.             ' +.'
            - if human decided so.
 
         | guard: like ' disa plus preserve trailing space of the VALUE.
                  Only one of disambiguation pragmas may appear at line.
 
-        ` btick: value is to be further parsed or modified in some way.
-                 Ie. it may instruct to substitute surrounding `s of the
-                 VALUE with spaces. "````val``" => "    val  ".
+        ` vaspe: value is to be further parsed or modified in some way.
 
         \ unesc: unescape VALUE. Process common escapes like \t or \n.
-                 Also: suppress default escaping of the VALUE (oc2xml).
 
         ^ nline: add a trailing newline to the string VALUE before use.
                  ^ MAY repeat consecutively adding more newlines. 
-                 ^ MUST NOT be used with type pragmas (^ is implicit ")
-
-        ≡  type: ≡ stands for one of:
-            22   "   STR : just a string. Also "no-magic-here" switch.
-            3f   ?  BOOL : 0, empty, first char Nn or Ff means FALSE.
-            23   #   INT : unsigned integer, integer, number.
-            24   $   DEC : decimal number (fixed point, currency).
-            2c   , CSVAL : VALUE contains a csv record.
-            2d   - HYPHE : custom type. Usually SIGNED integer. 
-            7e   ~ TILDE : custom type. Usually FLOAT.
-            2a   * ASTER : custom type.
-
-                 Explicit typing is discouraged in human-editable
-                 config files. Consider 'Model Default' typing instead.
-
-                 Any type MAY convey other than described meanings if it
-                 is needed or just useful for particular implementation,
-                 but then such meaning MUST be documented and it SHOULD
-                 be documented in a config file too (in a comment line). 
+                 ^ MUST NOT be used with type pragmas (it is implicit ")
 
         +  join: VALUE with next line value.
         %  join: META. Implementation specific meta is in the next line.
 
                  Only one of join pragmas may appear in a line.
                  Line to join may have its own pragmas that are applied
-                 before VALUEs are join or used. 
+                 before VALUEs join. 
 
         _  fill: underscore is a filler with no other function than to
                  pad for alignment or make longer chains more readable.
 
-       «»  meta: «» pair stand for one of recognized pairs:
+       «»  meta: «» stands for one of recognized pairs:
 
-       =/  =.../ PATH COPY or REFERENCE to an object at ... path.
+       &/  &.../ PATH REFERENCE an object at ... path.
+       =/  =.../ PATH COPY FROM an object at ... path.
        @;  @...; MUSER  Implementation defined.
        ()  (...) MUSER  Implementation defined.
        []  [...] MUSER  Implementation defined.
-       <>  <...> MTAG   Used with ML converters.
-       {}  {...} MODEL  Used with ML converters.
+       <>  <...> MTAG   usually used with ML converters.
+       {}  {...} MODEL  usually used with ML converters.
                  
                  Only one kind of meta SHOULD appear in a line.
                  PATH parts must be valid names or indices.
@@ -309,117 +366,123 @@
 
         .   end: Dot ends the FLOW block.
 
-    Simplified OConf uses only six pragmas: ' | \ ^ + % and a […] meta.
-    It is called 'Basic' then.
+       Additional eight characters MAY be recognized as 'type' pragmas.
+       (These are called 'type' pragmas for historical reasons only as
+       explicit typing is discouraged in human-editable config files.
+       For new implementations 'Model Default' typing should be used
+       instead). Still these pragmas can be useful eg. for Model
+       definitions.
 
-    Pragmas can be coupled, if more than one should apply.
-    Coupled pragmas SHOULD appear in an exact order:
+        ≡  type: ≡ stands for one of:
+            22   "   STR : just a string. Also "no-magic-here" switch.
+            3f   ?  BOOL : 0, empty, first char Nn or Ff means FALSE.
+            23   #   INT : unsigned integer, integer, number.
+            24   $   DEC : decimal number (fixed point, currency).
+            2c   , CSVAL : VALUE contains a csv record.
+            2d   - HYPHE : custom type. Usually SIGNED integer. 
+            7e   ~ TILDE : custom type. Usually FLOAT.
+            2a   * ASTER : custom type.
 
-      disa/guard:   ' |                     (one of)
+
+    Pragmas and metas can be coupled if more than one should apply.
+    In such a chain of pragmas disa/guard (if present) MUST come first
+    and any metas (if present) MUST come last. Other, ie. modify, type
+    and join SHOULD appear in order listed:
+
           modify:   ` \ ^
             type:   " ? # $ , ~ * - _       (one of) 
             join:   + %                     (one of)
-            meta:   @…; =…/ (…) […] {…} <…> (one of pairs)
     
-
     Eg.    xy ^^+.  // add two newlines then append next.
            xy  |+.  // preserve spaces then append next.
          ``xy` `+.  // subst ` with space then append next.
          xy +. '+.  // disambiguate +. of the value then append next.
 
 
-    If pragmas are chained, the 'disa or |guard pragmas MUST always come
-    first and any 'meta' block MUST come last.
-
-
   GROUP items for common pragma.
 
-    GROUP opens with a VALUE of single parenthesis character. 
+    GROUP opens with a SNAME of a single parenthesis character. 
     It closes over a block of ITEMs but it does not change its depth
     (so GROUP can not be a part of the path.)
     
-    Pragmas join, type, newline, backtick and meta can be set on a GROUP
-    opening and these then applly to EACH of grouped ITEMs. Pragmas from
-    the GROUP and a line are joined.
+    Any pragma that makes sense can be set on a GROUP opening and it
+    then applies to EACH of grouped ITEMs. Pragmas from the GROUP and
+    a line are joined.
 
-        : ( ^+.                     // group multiline text
+        ( : ^+.                     // group multiline text
           : line 1                  // ^+. implicit
           :  line // to disa '.     // '^+. sum of pragmas applies.
-          :  line 3                 // + here will break at ': )'
-        : )
+          :  line 3                 // + here will break at ':)'
+        ) :
 
 
-  Order of appearance for structured data blocks:
+  Order of appearance:
 
-    1. At the root of the tree is an unnamed section of depth 0.
+    1. For any given Section depth, simple named values MUST come first,
+       then come all NEST blocks, and subsections MUST come last.
+       If any is present.
 
-    2. All simple values of the section SHOULD be placed
-       before the first NEST block ('compound after simple' rule).
-    
-    3. All values of the section MUST be placed before the first
-       subsection lead (SECT of higher depth number).
+    2. In their respective kind all ITEMs MUST come in some order,
+       eg. a lexical one.
+       
+    3. Depth of any Subsection MUST always step down only by one.
+       Ie. ^ then  ^^ then  ^^^ ...
 
-    4. subsections depth MUST always step down only by one.
-       Ie. > then >> then >>> ...
-
-    5. Ordered values take the index number from their consecutive
-       place of appearance within its LIST block or from an explicit
+    4. Ordered values take the index number from their consecutive
+       place of appearance within its block or from an explicit
        INDEX number otherwise.  An implementation MUST NOT rely on
        the order of explicit INDEXes given.
 
-    6. Any data (subtree) to copy (=/) or reference (=&/) MUST exist or
-       at least be defined before it is copied or referred to. 
-
-    7. An implementation MUST NOT assume ordering other than set
-       in above rules. It SHOULD report wrong order to the user.
+    5. An implementation MUST NOT assume ordering other than set
+       in above rules and it SHOULD report wrong order to the user.
     
 
     Example:
 
-       aSECTion : >
-            a_key : named simple values should come first
-            b_key : in some order, eg. lexical one.
-                    " NEST collections may come second.
-           a_nest : [ 
-                    :       with naturally ORDered values, or with
-                  8 :       explicit INDEXed values that need not to
-                  7 : {     be given in the natural order.
-                 some : value 
-                    : }
-                  : ]
-                  1 :       But MUST NOT overwrite any existing index.
-                  " subsections MUST come last.
-       AsubSECT : >>            // can be empty 
-       BsubSECT : >>            // but MUST come (even empty) in depth
-         SubSub : >>>           // order, if there is anything
-        SuSuSub : >>>>          // to be set down the tree
-           ssskey : sssvalue    
-       CsubSECT : >>            // BsubSECT whole tree closes here
-           a_skey : value       // now we are in /aSECTion/CsubSECT
-       bSECTion : >             // aSECTion closes, bSECTion opens.
+     ^ aSECTion :  
+          a·key : named simple values should come first
+          b·key : in some order, eg. lexical one.
+                  " NEST collections may come second.
+         a·nest [ : 
+                  : with naturally ORDered values, or with
+                8 : explicit INDEXed values that need not
+                7 { : to be given in the natural order.
+               some : value 
+                  } :
+                1 :       But MUST NOT overwrite any existing index.
+                ] :
+                " subsections MUST come last.
+  ^    AsubSECT :          // can be empty 
+  ^^   BsubSECT :          // but MUST come (even empty) in depth
+  ^^^    SubSub :          // order, if there is anything
+  ^^^^  SuSuSub :          // to be set down the tree
+         ssskey : sssvalue 
+  ^^   CsubSECT :          // BsubSECT whole tree closes here
+         a·skey : value    // now we are in /aSECTion/CsubSECT
+  ^    bSECTion :          // aSECTion closes, bSECTion opens.
 
         
   PATH:
     
-    Any node in the OConf data tree can be visualised and pointed to
+    Any node in the OCONF data tree can be visualised and pointed to
     using PATH notation where names and indices are concatenated by
-    a slash character.  Eg.  /aSECTion/BsubSECT/SubSub/SuSuSub/ and
-    /aSECTion/a_nest/7/some/ are valid paths of above example.
-    Former points at the subtree, later to the value.
-
-    In MDC implementations common model names usually start with @
-    character, then meta path to copy is given short: =@modelnamer/.
+    a slash or underscore character.  Eg. 'aSECTion_a·nest_7_some'
+    and '/aSECTion/BsubSECT/SubSub/SuSuSub/' are valid paths of
+    above example.  Later points at the subtree, former to the
+    value.  In MDC implementations common model names usually are
+    of SNAME shape and start with @ character. Then meta path on
+    a copy is given short: =@modelnamer/.
 
 
   Comment lines:
 
-    OConf comment lines are 'top' ones. Group of consecutive comment
+    OCONF comment lines are 'top' ones. Group of consecutive comment
     lines always belongs to the next valid ITEM line. Except for the
     start/end of file positions that should keep their adjacent
     comment lines bond.
 
-      "   Double-quote is the default OConf comment line marker.
-      /   Slash is the secondary OConf comment line marker.
+      "   Double-quote is the default OCONF comment line marker.
+      /   Slash is the secondary OCONF comment line marker.
           Usually doubled to be consistent with EOL remarks.
       !   Bang is used for in-place error reporting. Usually doubled.
       #   Sharp can be used too.
@@ -430,7 +493,7 @@
     If an implementation is expected to write back into config files,
     it SHOULD use error-comments as a reporting venue. Eg.
 
-        Section  : >>>
+        ^^ Section : 
           !! Error : Unrecognized "someinvalidkey"
           !!         someinvalidkey : somevalue
           keyvalid : valuevalid
@@ -445,9 +508,8 @@
   Line pragmas:
     
     If the starting character is from the 0x24-0x26 then 0x28-0x2E
-    ranges, line MAY be interpreted as a 'line-pragma'.
-
-    Defined line pragmas (meaning) are:
+    ranges, this line MAY be interpreted as a 'line-pragma'.
+    SUGGESTED meanings for common line-pragmas are:
 
         . include file
         - raw line (embed some other format)
@@ -455,30 +517,28 @@
         % define some macro, hint or template
 
 
-    Nonetheless, line pragmas are just a comment lines and any meaning
-    of them (their content) is external to this specification.
+    Nonetheless, line pragmas from the format PoV are just a comments
+    and any meaning of them (their content) is external to this
+    specification.
 
 
-  ITEM modifiers:
+  NAME ITEM modifiers:
     
-    If the starting character is from the described below set 
-    it MAY affect the ITEM given further in the line:
+    If a NAME starts with a character that is not an ascii letter or
+    digit this and a following character MAY be used in MDC context
+    to convey more information. It can be interpreted and impose usage
+    rules.  SUGGESTED meanings for some NAME modifiers are:
 
-        ' NameStart. Name starts at the next position. Eg with a space.
-          ' mod SHOULD be implemented. 
-          
-    Below three modifiers are just RECOMMENDED, as external to the line
-    format specification. (Put here as a reminder.)
-
-        = ReadOnly ITEM. Even app may not modify it.
-        > SetOnce. Further overwrite from the config is prohibited.
-        < MustBeSet. Human should overwrite default or at least ack it.
+        == ReadOnly ITEM. Even app may not modify it.
+        => SetOnce. Further overwrite from the config is prohibited.
+        =< MustBeSet. Human should overwrite default or at least ack it.
+        =? Default ITEM, that can be modified by other includes.
 
 
   Output indentation rules.
 
-    This section normalizes machine output of the OConf format.
-    An implementation that does write OConf files meant for
+    This section normalizes machine output of the OCONF format.
+    An implementation that does write OCONF files meant for
     human editing MUST abide to it.
 
     Lengths and positions are measured in terminal units (cells), not
@@ -488,52 +548,35 @@
     keys given as mix of ascii, EE, Chinese and Devanagari glyphs.
 
     Implementation MAY narrow wide-print recognizing to the whole
-    script ranges. Ie. a rarely used wide-print glyphs may not be
-    recognized and may distort the output. 
-
+    script ranges. Ie. a rarely used wide-print glyphs MAY not be
+    recognized and MAY distort the output.
 
     The depth of the data tree starts with 0, for values given at root.
-    The maximum length of the name is a KMAX parameter to the Printer.
+    OCONF's formatter (printer) is given a single KMAX parameter
+    that denotes maximum expected length of any ITEM Name.
 
-    1. Separator of the SECT opening, regardless of its depth, MUST be
-       placed at column equal to the KMAX + 1.  At the same column are
-       placed all separators of depth 0.
+    If only a few keys of many are expected to be significantly longer
+    than others, KMAX then MAY be set lower and these outstanding keys'
+    separator MAY not keep to the line.
 
-    2. The colon of the separator used inside any structure block
-       MUST be placed at the very same column as the opening/closing
-       special value of this block: ( { [ { < or first > of the SECT.
+    ITEMs within any Section immediate scope have their colon-separator
+    placed at column KMAX+2.
+    
+    ITEMs within any other structure block have their closing bracket
+    placed at the column of the colon-separator of the containing
+    structure.
 
-    3. The name (key) of the SECT opening MUST start at column equal to
-       depth + 1 if key length is less than KMAX-depth. Or at the first
-       column otherwise. Ie. SECT name MUST appear shifted toward SOL.
+    NAMEs and INDEXes are space-adjusted toward the separator.
+    SECT ^ markers always start at column 1 but other parts of the
+      NAME are shifted toward the separator.
 
-    4. The end character of the name (key) of any other ITEM line MUST
-       be adjacent to the separator. Ie. it MUST appear end-adjusted to
-       the following colon (then to the vertical line made of colons).
-
-    5. Value MUST start immediately after separator's trailing space.
-
-    6. If only a few keys of many are expected to be significantly
-       longer than others, KMAX then MAY be set lower and these
-       outstanding keys' separator MAY not keep to the line.
-
-    7. Colon column for the line can be computed as follows:
-
-        ROOT   any: fcc = KMAX + 2 
-        SECT  open: occ = KMAX + 2
-        SECT items: scc = KMAX + 4
-        NEST items: ncc = scc + (2 * relative_depth).
-
-        where relative_depth is the absolute (path) depth
-        minus depth of the current SECT.
-        
     All examples in this document use defined above formatting.
 
 
   Parsing errors:
 
     If a config line can not be succesfully parsed it is an error.
-    It SHOULD be somewhat reported to the user.  RECOMMENDED message
+    It MUST be somewhat reported to the user.  RECOMMENDED message
     is: 'ERROR: line <n> is not valid.'
 
 
@@ -563,7 +606,7 @@
 
     In the edge case of an entirely flat config a parser that uses
     just ' : ' key/value separator and skip lines that start with
-    OConf comment-line markers may claim to be conformant.
+    OCONF comment-line markers may claim to be conformant.
 
     Conformant parser MUST NOT redefine meaning of any ommited part.
 
@@ -572,18 +615,18 @@
 
   History:
 
-    Format now named OConf was born in late nineties because none
+    Format now named OCONF was born in late nineties because none
     other then known allowed for unaltered perl regexp or code
     snippet as a value.  To my (ohir's) knowledge no other config
     format can make to it in a single line even today.
 
-    First OConf parser was implemented as simple regexp for a huge
-    mainframe-to-unix pipeline written in perl. Now, shortened with
-    new perlre lookaheads and extended to cover also corner cases,
-    this parser's tokenizer was used as a syntax formal specification.
+    Current OCONF specifcation was extended with more metas and with
+    definition of a GROUP for pragma application. Structure markers
+    (brackets) in the first implementation were special values, now
+    these were moved to the NAME. 
+    
+    This reworked specifcation is tagged as v1.0.0
 
-    Current OConf specifcation was extended with more metas
-    and with definition of GROUP pragma application.
 
 
 
@@ -600,8 +643,6 @@ APPENDIX F.
     - Disambiguations '. or |. must be used where VALUE:
        ‣ contains a ' //' (remark) sequence.
        ‣ ends with a (pragma, dot) sequence.
-       ‣ consist of only > characters (one or more).
-       ‣ is a single character of: ( { [ < ] } )
      
     - The single space after the separator colon NEVER is a part of
       the value.  If the leading space in value is significant, second
@@ -612,11 +653,11 @@ APPENDIX F.
 
       Manual by example: 
 
-        "  Disambiguate      VALUE is:
-        key : >>>     '.  // not a Section lead.
-            : >       '.  // not an end of SET. Also   ) } ]  
-            : [       '.  // not a start of LIST. Also ( { <
-            : si ?.   '.  // not 'si' of a bool type
+        #  Disambiguate          result shown in "double-quotes": 
+        key : va //lue '. // disa remark - gives "va //lue" string
+        key : value +. '. // disa pragma - gives "value +." string
+        ' !#?%key : value // disa kstart - gives " !#?%key" string
+        '@__  key :       // disa kstart - @__ is not a Section lead.
 
         "  Trailing guard 
         key : value       // 'value'     - NO trailing spaces
